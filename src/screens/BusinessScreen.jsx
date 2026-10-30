@@ -1,6 +1,14 @@
 import React, { useState, useEffect, useRef } from "react";
 import useStore from "../store/index.js";
 
+// Report delivery settings: the same shape Proji uses for its schedule.
+const REPORT_KINDS = [
+  ["daily", "Ежедневный (за вчера)"],
+  ["weekly", "Еженедельный (за прошлую неделю)"],
+  ["monthly", "Ежемесячный (за прошлый месяц)"],
+];
+const WEEKDAYS = ["понедельник", "вторник", "среда", "четверг", "пятница", "суббота", "воскресенье"];
+
 export default function BusinessScreen() {
   const appState = useStore((s) => s.appState);
   const currentUser = useStore((s) => s.currentUser);
@@ -34,6 +42,8 @@ export default function BusinessScreen() {
   const [monthlySalesPlan, setMonthlySalesPlan] = useState("");
   const [advantages, setAdvantages] = useState("");
   const [promotions, setPromotions] = useState("");
+  const [reportPhones, setReportPhones] = useState("");
+  const [reportSchedule, setReportSchedule] = useState({});
   const [profileSaveStatus, setProfileSaveStatus] = useState("");
 
   const initializedTenantRef = useRef("");
@@ -55,6 +65,8 @@ export default function BusinessScreen() {
     setMonthlySalesPlan(profile.monthly_sales_plan_kzt ? String(profile.monthly_sales_plan_kzt) : "");
     setAdvantages(profile.advantages || "");
     setPromotions(profile.promotions || "");
+    setReportPhones(profile.report_phones || "");
+    setReportSchedule(profile.report_schedule || {});
     setProfileSaveStatus("");
   }, [appState, currentTenantId]);
 
@@ -155,6 +167,8 @@ export default function BusinessScreen() {
         monthly_sales_plan_kzt: monthlySalesPlan ? Number(monthlySalesPlan) : null,
         advantages,
         promotions,
+        report_phones: reportPhones,
+        report_schedule: reportSchedule,
       });
       setProfileSaveStatus("Анкета бизнеса сохранена.");
     } catch (err) {
@@ -499,6 +513,48 @@ export default function BusinessScreen() {
                 className="bg-input border border-border rounded px-3 py-2 text-foreground resize-y"
               />
             </label>
+            <div className="flex flex-col gap-3 text-xs text-muted-foreground @3xl:col-span-2">
+              <span>
+                Отчёты в WhatsApp{" "}
+                <span className="text-[10px] text-muted-foreground/60">
+                  (отправляет Proji через агента «Аудитор продаж», время по Алматы)
+                </span>
+              </span>
+              <input
+                type="text"
+                value={reportPhones}
+                onChange={(e) => setReportPhones(e.target.value)}
+                placeholder="Номера через запятую: +7 701 123 45 67, +7 702 123 45 67"
+                className="bg-input border border-border rounded px-3 py-2 text-foreground"
+              />
+              {REPORT_KINDS.map(([kind, label]) => {
+                const item = { at: "09:00", weekday: 1, day: 1, ...(reportSchedule[kind] || {}) };
+                const update = (patch) => setReportSchedule({ ...reportSchedule, [kind]: { ...item, ...patch } });
+                return (
+                  <div key={kind} className="flex flex-wrap items-center gap-3">
+                    <label className="flex items-center gap-2 min-w-56 text-foreground">
+                      <input type="checkbox" checked={Boolean(item.enabled)} onChange={(e) => update({ enabled: e.target.checked })} />
+                      {label}
+                    </label>
+                    в
+                    <input type="time" value={item.at} onChange={(e) => update({ at: e.target.value })} className="bg-input border border-border rounded px-2 py-1 text-foreground" />
+                    {kind === "weekly" && (
+                      <select value={item.weekday} onChange={(e) => update({ weekday: Number(e.target.value) })} className="bg-input border border-border rounded px-2 py-1 text-foreground">
+                        {WEEKDAYS.map((name, i) => (
+                          <option key={name} value={i + 1}>{name}</option>
+                        ))}
+                      </select>
+                    )}
+                    {kind === "monthly" && (
+                      <>
+                        числа
+                        <input type="number" min={1} max={28} value={item.day} onChange={(e) => update({ day: Number(e.target.value) })} className="w-16 bg-input border border-border rounded px-2 py-1 text-foreground" />
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
           <div className="flex flex-col @3xl:flex-row @3xl:items-center gap-3">
             <button
